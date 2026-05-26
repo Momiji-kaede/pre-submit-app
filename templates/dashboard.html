@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>課題提出アプリ - ダッシュボード</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <nav class="navbar">
+            <div class="navbar-content">
+                <h1 class="navbar-title">📝 課題提出アプリ</h1>
+                <div class="navbar-right">
+                    <span class="user-info">👤 {{ username }}</span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-logout">ログアウト</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="dashboard-content">
+            <div class="welcome-section">
+                <h2>こんにちは、{{ username }}さん！</h2>
+                <p>課題提出システムへようこそ</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>課題一覧</h3>
+                    <p>提出予定の課題を確認</p>
+                    <a href="#" class="btn btn-secondary">表示</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📤</div>
+                    <h3>課題を提出</h3>
+                    <p>新しい課題を提出</p>
+                    <a href="#" class="btn btn-secondary">提出</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">✅</div>
+                    <h3>提出済み課題</h3>
+                    <p>提出済みの課題を確認</p>
+                    <a href="#" class="btn btn-secondary">確認</a>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚙️</div>
+                    <h3>設定</h3>
+                    <p>プロフィール設定</p>
+                    <a href="#" class="btn btn-secondary">設定</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -7,7 +7,7 @@ import uuid
 import zipfile
 from io import BytesIO
 from database import (
-    init_db, db, User, AcademicYear, Course, CourseEnrollment, 
+    db, init_db, User, AcademicYear, Course, CourseEnrollment, 
     Assignment, Submission, SubmissionURL,
     get_user, create_user, get_or_create_academic_year, 
     create_course, get_course, create_assignment, get_assignment,

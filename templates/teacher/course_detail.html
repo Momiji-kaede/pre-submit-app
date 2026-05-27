@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}授業詳細 - {{ course.course_name }}{% endblock %}
+
+{% block content %}
+<div class="course-detail">
+    <h2>{{ course.course_name }} ({{ course.academic_year.year }}年度)</h2>
+
+    <div class="course-info">
+        <p><strong>説明:</strong> {{ course.description or '説明なし' }}</p>
+    </div>
+
+    <div class="section">
+        <h3>📋 課題一覧</h3>
+        {% if assignments %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>回</th>
+                    <th>課題名</th>
+                    <th>締め切り</th>
+                    <th>公開状態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                <tr>
+                    <td>第{{ assignment.lecture_number }}回</td>
+                    <td>{{ assignment.title }}</td>
+                    <td>{{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('teacher_toggle_publish', assignment_id=assignment.id) }}" style="display:inline;">
+                            {% if assignment.is_published %}
+                            <span class="badge badge-success">公開中</span>
+                            {% else %}
+                            <span class="badge badge-danger">非公開</span>
+                            {% endif %}
+                            <button type="submit" class="btn btn-small">{% if assignment.is_published %}非公開にする{% else %}公開する{% endif %}</button>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('teacher_assignment_submissions', assignment_id=assignment.id) }}" class="btn btn-secondary">提出状況</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('teacher_create_assignment', course_id=course.id) }}" class="btn btn-primary">新しい課題を作成</a>
+        {% else %}
+        <p class="empty-message">課題がまだ登録されていません</p>
+        <a href="{{ url_for('teacher_create_assignment', course_id=course.id) }}" class="btn btn-primary">課題を作成</a>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h3>👨‍🎓 学生管理</h3>
+        <form method="POST" action="{{ url_for('teacher_register_student', course_id=course.id) }}" class="form-inline">
+            <div class="form-group">
+                <label for="student_id">学生を選択</label>
+                <select id="student_id" name="student_id" required>
+                    <option value="">-- 学生を選択 --</option>
+                    <!-- 学生リストを表示 -->
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">登録</button>
+        </form>
+
+        <h4>登録済み学生</h4>
+        {% if enrollments %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>学生名</th>
+                    <th>登録日</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for enrollment in enrollments %}
+                <tr>
+                    <td>{{ enrollment.student.username }}</td>
+                    <td>{{ enrollment.enrolled_at.strftime('%Y-%m-%d') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">登録済み学生がいません</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <a href="{{ url_for('teacher_download_zip', course_id=course.id) }}" class="btn btn-success">📥 全課題をZIPでダウンロード</a>
+    </div>
+
+    <div class="section">
+        <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">戻る</a>
+    </div>
+</div>
+{% endblock %}

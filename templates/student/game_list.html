@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}ゲーム一覧 - {{ course.course_name }}{% endblock %}
+
+{% block content %}
+<div class="game-list">
+    <h2>🎮 ゲーム一覧 - {{ course.course_name }}</h2>
+
+    <div class="games-grid">
+        <div class="game-card">
+            <h3>サンプルゲーム</h3>
+            <p>このコースで提出されたゲームが表示されます。</p>
+            <a href="#" class="btn btn-primary">プレイする</a>
+        </div>
+    </div>
+
+    <div class="section">
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">戻る</a>
+    </div>
+</div>
+{% endblock %}

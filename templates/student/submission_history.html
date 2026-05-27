@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}提出履歴 - {{ assignment.title }}{% endblock %}
+
+{% block content %}
+<div class="submission-history">
+    <h2>提出履歴 - {{ assignment.title }}</h2>
+    <p>第{{ assignment.lecture_number }}回 | {{ course.course_name }}</p>
+
+    {% if history %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>提出回数</th>
+                <th>提出日時</th>
+                <th>ファイル</th>
+                <th>遅延</th>
+                <th>最新</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for submission in history %}
+            <tr>
+                <td>{{ submission.submission_number }}回目</td>
+                <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>{{ submission.file_path.split('/')[-1] }}</td>
+                <td>
+                    {% if submission.is_late %}
+                    <span class="badge badge-danger">🔴 遅延</span>
+                    {% else %}
+                    <span class="badge badge-success">✅ 期限内</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if submission.is_latest %}
+                    ⭐ 最新
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-message">提出履歴がありません</p>
+    {% endif %}
+
+    <div class="section">
+        <a href="{{ url_for('student_course_assignments', course_id=course.id) }}" class="btn btn-secondary">戻る</a>
+    </div>
+</div>
+{% endblock %}

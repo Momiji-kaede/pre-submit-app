@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}課題一覧 - {{ course.course_name }}{% endblock %}
+
+{% block content %}
+<div class="course-assignments">
+    <h2>課題一覧 - {{ course.course_name }}</h2>
+    <p>{{ course.academic_year.year }}年度</p>
+
+    {% if assignment_data %}
+    <div class="assignments-list">
+        {% for item in assignment_data %}
+        <div class="assignment-item {% if item.submission and item.submission.is_late %}late{% endif %}">
+            <div class="assignment-header">
+                <h3>第{{ item.assignment.lecture_number }}回: {{ item.assignment.title }}</h3>
+                <span class="status">
+                    {% if item.submission %}
+                    ✅ 提出済み
+                    {% else %}
+                    ⏳ 未提出
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="assignment-details">
+                <p><strong>説明:</strong> {{ item.assignment.description or '説明なし' }}</p>
+                <p><strong>公開期間:</strong> {{ item.assignment.public_start_date.strftime('%Y-%m-%d %H:%M') }} ～ {{ item.assignment.public_end_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p><strong>締め切り:</strong> {{ item.assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</p>
+
+                {% if item.submission %}
+                <p><strong>提出日時:</strong> {{ item.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p><strong>提出回数:</strong> {{ item.submission.submission_number }}回目</p>
+                {% if item.submission.is_late %}
+                <p class="text-danger">🔴 <strong>この提出は期限を超えています</strong></p>
+                {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="assignment-actions">
+                {% if item.assignment.is_published and item.assignment.public_start_date <= now and now <= item.assignment.public_end_date %}
+                <a href="{{ url_for('student_submit_assignment', assignment_id=item.assignment.id) }}" class="btn btn-primary">提出する</a>
+                {% else %}
+                <button class="btn btn-secondary" disabled>提出不可</button>
+                {% endif %}
+
+                {% if item.submission %}
+                <a href="{{ url_for('student_submission_history', assignment_id=item.assignment.id) }}" class="btn btn-secondary">提出履歴</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-message">課題がまだ登録されていません</p>
+    {% endif %}
+
+    <div class="section">
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">戻る</a>
+    </div>
+</div>
+{% endblock %}

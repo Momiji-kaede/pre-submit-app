@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}管理者ダッシュボード{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <h2>👨‍💼 管理者ダッシュボード</h2>
+
+    <div class="admin-section">
+        <h3>📅 年度管理</h3>
+        <div class="year-section">
+            <form method="POST" action="{{ url_for('admin_create_academic_year') }}" class="form-inline">
+                <div class="form-group">
+                    <label for="year">年度</label>
+                    <input type="number" id="year" name="year" placeholder="2024" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">説明</label>
+                    <input type="text" id="description" name="description" placeholder="説明（任意）">
+                </div>
+                <button type="submit" class="btn btn-primary">年度を作成</button>
+            </form>
+        </div>
+
+        <h4>登録済み年度</h4>
+        <ul class="year-list">
+            {% for year in academic_years %}
+            <li>{{ year.year }} - {{ year.description or '説明なし' }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="admin-section">
+        <h3>👨‍🏫 教師管理</h3>
+        <div class="teacher-section">
+            <form method="POST" action="{{ url_for('admin_create_teacher') }}" class="form-block">
+                <div class="form-group">
+                    <label for="t_username">ユーザー名</label>
+                    <input type="text" id="t_username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="t_email">メールアドレス</label>
+                    <input type="email" id="t_email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="t_password">パスワード</label>
+                    <input type="password" id="t_password" name="password" required>
+                </div>
+                <div class="form-group checkbox">
+                    <input type="checkbox" id="is_system_admin" name="is_system_admin">
+                    <label for="is_system_admin">システム管理者権限を付与</label>
+                </div>
+                <button type="submit" class="btn btn-primary">教師を作成</button>
+            </form>
+        </div>
+
+        <h4>登録済み教師</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>メール</th>
+                    <th>システム管理者</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                    <td>{{ teacher.username }}</td>
+                    <td>{{ teacher.email }}</td>
+                    <td>{% if teacher.is_system_admin %}✅{% else %}❌{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="admin-section">
+        <h3>👨‍🎓 学生一覧</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>メール</th>
+                    <th>登録日</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.username }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>{{ student.created_at.strftime('%Y-%m-%d') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

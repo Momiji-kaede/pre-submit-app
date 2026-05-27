@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}課題を作成 - {{ course.course_name }}{% endblock %}
+
+{% block content %}
+<div class="create-assignment">
+    <h2>課題を作成 - {{ course.course_name }}</h2>
+
+    <form method="POST" class="form-block">
+        <div class="form-group">
+            <label for="lecture_number">回数 (1-15)</label>
+            <input type="number" id="lecture_number" name="lecture_number" min="1" max="15" required>
+        </div>
+
+        <div class="form-group">
+            <label for="title">課題名</label>
+            <input type="text" id="title" name="title" placeholder="課題名を入力" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">説明</label>
+            <textarea id="description" name="description" placeholder="課題の説明（任意）"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="registration_date">課題登録日</label>
+            <input type="datetime-local" id="registration_date" name="registration_date" required>
+        </div>
+
+        <div class="form-group">
+            <label for="public_start_date">公開開始日</label>
+            <input type="datetime-local" id="public_start_date" name="public_start_date" required>
+        </div>
+
+        <div class="form-group">
+            <label for="public_end_date">公開終了日</label>
+            <input type="datetime-local" id="public_end_date" name="public_end_date" required>
+        </div>
+
+        <div class="form-group">
+            <label for="deadline">提出締め切り</label>
+            <input type="datetime-local" id="deadline" name="deadline" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">課題を作成</button>
+        <a href="{{ url_for('teacher_course_detail', course_id=course.id) }}" class="btn btn-secondary">キャンセル</a>
+    </form>
+</div>
+{% endblock %}

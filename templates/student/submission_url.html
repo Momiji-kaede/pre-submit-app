@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}提出完了{% endblock %}
+
+{% block content %}
+<div class="submission-url">
+    <div class="success-message">
+        <h2>✅ 提出が完了しました！</h2>
+        <p>課題「{{ assignment.title }}」を提出しました。</p>
+    </div>
+
+    <div class="url-section">
+        <h3>📎 提出URL</h3>
+        <p>下記のURLを使用して、この提出にアクセスできます。</p>
+        <div class="url-box">
+            <input type="text" id="url" value="{{ request.host_url }}submission/{{ url_token }}" readonly>
+            <button type="button" class="btn btn-small" onclick="copyURL()">コピー</button>
+        </div>
+    </div>
+
+    <div class="submission-info">
+        <h3>提出情報</h3>
+        <table class="table">
+            <tr>
+                <th>学生名</th>
+                <td>{{ student.username }}</td>
+            </tr>
+            <tr>
+                <th>課題名</th>
+                <td>{{ assignment.title }}</td>
+            </tr>
+            <tr>
+                <th>提出日時</th>
+                <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            </tr>
+            <tr>
+                <th>提出回数</th>
+                <td>{{ submission.submission_number }}回目</td>
+            </tr>
+            <tr>
+                <th>遅延状態</th>
+                <td>
+                    {% if submission.is_late %}
+                    <span class="badge badge-danger">🔴 遅延</span>
+                    {% else %}
+                    <span class="badge badge-success">✅ 期限内</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">ダッシュボードに戻る</a>
+    </div>
+</div>
+
+<script>
+function copyURL() {
+    var urlInput = document.getElementById('url');
+    urlInput.select();
+    document.execCommand('copy');
+    alert('URLをコピーしました！');
+}
+</script>
+{% endblock %}

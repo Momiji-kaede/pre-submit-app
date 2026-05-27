@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - サーバーエラー</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="error-container">
+        <h1>500</h1>
+        <h2>サーバーエラーが発生しました</h2>
+        <p>申し訳ございませんが、エラーが発生しました。しばらくしてからお試しください。</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">ホームに戻る</a>
+    </div>
+</body>
+</html>

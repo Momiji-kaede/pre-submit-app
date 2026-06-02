@@ -5,14 +5,16 @@ from datetime import datetime, timedelta
 import os
 import uuid
 import zipfile
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 from database import (
     db, init_db, User, AcademicYear, Course, CourseEnrollment, 
-    Assignment, Submission, SubmissionURL,
-    get_user, create_user, get_or_create_academic_year, 
-    create_course, get_course, create_assignment, get_assignment,
+    Assignment, Submission, SubmissionURL, Rubric, Grading, SubmissionFile,
+    get_user, create_user, get_or_create_academic_year, get_all_students, get_all_assistants,
+    delete_user, create_course, get_course, create_assignment, get_assignment,
     get_course_assignments, create_submission, get_student_submission,
-    get_submission_history
+    get_submission_history, create_rubric, get_assignment_rubrics,
+    create_grading, get_student_grades, get_student_total_score
 )
 
 app = Flask(__name__)
@@ -20,9 +22,9 @@ app.secret_key = 'your-secret-key-change-this'
 
 # ファイルアップロード設定
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-ALLOWED_EXTENSIONS = {'zip', 'exe', 'unity3d', 'bin', 'wasm', 'json'}
+ALLOWED_EXTENSIONS = {'zip', 'exe', 'unity3d', 'bin', 'wasm', 'json', 'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB
 
 # uploadsフォルダが存在しなければ作成
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -46,6 +48,10 @@ def is_student():
     """ユーザーが学生かチェック"""
     return session.get('role') == 'student'
 
+def is_assistant():
+    """ユーザーが補助学生かチェック"""
+    return session.get('role') == 'assistant'
+
 def is_system_admin():
     """システム管理者権限をチェック"""
     return session.get('is_system_admin', False)
@@ -60,7 +66,7 @@ def index():
             return redirect(url_for('admin_dashboard'))
         elif role == 'teacher':
             return redirect(url_for('teacher_dashboard'))
-        elif role == 'student':
+        elif role in ['student', 'assistant']:
             return redirect(url_for('student_dashboard'))
     return redirect(url_for('login'))
 
@@ -83,7 +89,7 @@ def login():
                 return redirect(url_for('admin_dashboard'))
             elif role == 'teacher':
                 return redirect(url_for('teacher_dashboard'))
-            elif role == 'student':
+            elif role in ['student', 'assistant']:
                 return redirect(url_for('student_dashboard'))
         else:
             error = 'ユーザー名またはパスワードが正しくありません'
@@ -132,15 +138,16 @@ def admin_dashboard():
     if not session.get('user_id') or session.get('role') != 'admin':
         return redirect(url_for('login'))
     
-    # 現在の年度一覧を取得
     academic_years = AcademicYear.query.all()
     teachers = User.query.filter_by(role='teacher').all()
     students = User.query.filter_by(role='student').all()
+    assistants = User.query.filter_by(role='assistant').all()
     
     return render_template('admin/dashboard.html', 
                          academic_years=academic_years,
                          teachers=teachers,
-                         students=students)
+                         students=students,
+                         assistants=assistants)
 
 @app.route('/admin/academic-years', methods=['POST'])
 def admin_create_academic_year():
@@ -169,14 +176,15 @@ def admin_create_teacher():
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
-    is_system_admin = request.form.get('is_system_admin') == 'on'
+    full_name = request.form.get('full_name')
+    is_system_admin_flag = request.form.get('is_system_admin') == 'on'
     
     try:
         if get_user(username):
             flash('このユーザー名は既に使用されています', 'error')
         else:
             hashed_password = generate_password_hash(password)
-            create_user(username, email, hashed_password, 'teacher', is_system_admin)
+            create_user(username, email, hashed_password, 'teacher', is_system_admin_flag, full_name)
             flash(f'教師 {username} を作成しました', 'success')
     except Exception as e:
         flash(f'エラー: {str(e)}', 'error')
@@ -191,11 +199,75 @@ def teacher_dashboard():
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
-    
-    # 教師が担当する授業一覧
     courses = Course.query.filter_by(teacher_id=user_id).all()
     
     return render_template('teacher/dashboard.html', courses=courses)
+
+@app.route('/teacher/users')
+def teacher_user_management():
+    """教師用ユーザー管理画面"""
+    if not session.get('user_id') or session.get('role') != 'teacher':
+        return redirect(url_for('login'))
+    
+    students = get_all_students()
+    assistants = get_all_assistants()
+    
+    return render_template('teacher/user_management.html',
+                         students=students,
+                         assistants=assistants)
+
+@app.route('/teacher/user/create', methods=['POST'])
+def teacher_create_user():
+    """教師がユーザーを作成"""
+    if not session.get('user_id') or session.get('role') != 'teacher':
+        return redirect(url_for('login'))
+    
+    username = request.form.get('username')
+    email = request.form.get('email')
+    full_name = request.form.get('full_name')
+    student_id = request.form.get('student_id')
+    grade = request.form.get('grade')
+    class_number = request.form.get('class_number')
+    student_number = request.form.get('student_number')
+    role = request.form.get('role')  # student or assistant
+    
+    try:
+        if get_user(username):
+            flash('このユーザー名は既に使用されています', 'error')
+        else:
+            # 初期パスワードは学籍番号
+            hashed_password = generate_password_hash(student_id)
+            create_user(
+                username, email, hashed_password, role, False,
+                full_name=full_name,
+                student_id=student_id,
+                grade=int(grade) if grade else None,
+                class_number=class_number,
+                student_number=int(student_number) if student_number else None
+            )
+            flash(f'ユーザー {username} を作成しました（初期パスワード：{student_id}）', 'success')
+    except Exception as e:
+        flash(f'エラー: {str(e)}', 'error')
+    
+    return redirect(url_for('teacher_user_management'))
+
+@app.route('/teacher/user/<int:user_id>/delete', methods=['POST'])
+def teacher_delete_user(user_id):
+    """教師がユーザーを削除"""
+    if not session.get('user_id') or session.get('role') != 'teacher':
+        return redirect(url_for('login'))
+    
+    try:
+        user = User.query.get(user_id)
+        if user and user.role in ['student', 'assistant']:
+            delete_user(user_id)
+            flash(f'ユーザー {user.username} を削除しました', 'success')
+        else:
+            flash('削除できないユーザーです', 'error')
+    except Exception as e:
+        flash(f'エラー: {str(e)}', 'error')
+    
+    return redirect(url_for('teacher_user_management'))
 
 @app.route('/teacher/course/<int:course_id>')
 def teacher_course_detail(course_id):
@@ -227,11 +299,9 @@ def teacher_assignment_submissions(assignment_id):
     if course.teacher_id != session.get('user_id'):
         return redirect(url_for('teacher_dashboard'))
     
-    # 提出状況を取得
     submissions = Submission.query.filter_by(assignment_id=assignment_id, is_latest=True).all()
     enrollments = CourseEnrollment.query.filter_by(course_id=course.id).all()
     
-    # 学生ごとの提出状況を整理
     submission_status = {}
     for enrollment in enrollments:
         student_id = enrollment.student_id
@@ -269,7 +339,6 @@ def teacher_register_student(course_id):
     student_id = request.form.get('student_id')
     
     try:
-        # 既に登録されているかチェック
         existing = CourseEnrollment.query.filter_by(
             course_id=course_id,
             student_id=student_id
@@ -348,7 +417,6 @@ def teacher_download_zip(course_id):
     if not course or course.teacher_id != session.get('user_id'):
         return redirect(url_for('teacher_dashboard'))
     
-    # ZIPファイルを作成
     zip_buffer = BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -360,13 +428,12 @@ def teacher_download_zip(course_id):
                 is_latest=True
             ).all()
             
-            # 課題ごとのフォルダを作成
             folder_name = f"lecture_{assignment.lecture_number:02d}_{assignment.title}"
             
             for submission in submissions:
                 if os.path.exists(submission.file_path):
                     student = User.query.get(submission.student_id)
-                    file_name = f"{student.username}_{submission.submission_number}.zip"
+                    file_name = f"{student.student_id}_{submission.submission_number}.zip"
                     
                     with open(submission.file_path, 'rb') as f:
                         zip_file.writestr(f"{folder_name}/{file_name}", f.read())
@@ -384,12 +451,11 @@ def teacher_download_zip(course_id):
 
 @app.route('/student/dashboard')
 def student_dashboard():
-    if not session.get('user_id') or session.get('role') != 'student':
+    if not session.get('user_id') or session.get('role') not in ['student', 'assistant']:
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
     
-    # 学生が登録している授業一覧
     enrollments = CourseEnrollment.query.filter_by(student_id=user_id).all()
     courses = [CourseEnrollment.query.get(e.id).course_id for e in enrollments]
     
@@ -399,12 +465,11 @@ def student_dashboard():
 
 @app.route('/student/course/<int:course_id>')
 def student_course_assignments(course_id):
-    if not session.get('user_id') or session.get('role') != 'student':
+    if not session.get('user_id') or session.get('role') not in ['student', 'assistant']:
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
     
-    # 登録確認
     enrollment = CourseEnrollment.query.filter_by(
         course_id=course_id,
         student_id=user_id
@@ -416,13 +481,14 @@ def student_course_assignments(course_id):
     course = get_course(course_id)
     assignments = get_course_assignments(course_id)
     
-    # 各課題の提出状況を確認
     assignment_data = []
+    now = datetime.utcnow()
     for assignment in assignments:
         submission = get_student_submission(assignment.id, user_id)
         assignment_data.append({
             'assignment': assignment,
-            'submission': submission
+            'submission': submission,
+            'now': now
         })
     
     return render_template('student/course_assignments.html',
@@ -431,7 +497,7 @@ def student_course_assignments(course_id):
 
 @app.route('/student/assignment/<int:assignment_id>/submit', methods=['GET', 'POST'])
 def student_submit_assignment(assignment_id):
-    if not session.get('user_id') or session.get('role') != 'student':
+    if not session.get('user_id') or session.get('role') not in ['student', 'assistant']:
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
@@ -442,7 +508,6 @@ def student_submit_assignment(assignment_id):
     
     course = get_course(assignment.course_id)
     
-    # 登録確認
     enrollment = CourseEnrollment.query.filter_by(
         course_id=course.id,
         student_id=user_id
@@ -451,7 +516,6 @@ def student_submit_assignment(assignment_id):
     if not enrollment:
         return redirect(url_for('student_dashboard'))
     
-    # 公開期間チェック
     now = datetime.utcnow()
     if not assignment.is_published or now < assignment.public_start_date or now > assignment.public_end_date:
         flash('この課題は現在提出できません', 'warning')
@@ -472,22 +536,24 @@ def student_submit_assignment(assignment_id):
             flash('許可されていないファイル形式です', 'error')
             return redirect(request.url)
         
+        message = request.form.get('message', '')
+        
         try:
-            # ファイルを保存
             filename = secure_filename(file.filename)
             unique_filename = f"{user_id}_{assignment_id}_{uuid.uuid4()}_{filename}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(filepath)
             
-            # 提出を記録
-            submission = create_submission(assignment_id, user_id, filepath)
+            submission = create_submission(
+                assignment_id, user_id, filepath,
+                original_filename=filename,
+                message=message if message else None
+            )
             
-            # 遅延チェック
             is_late = datetime.utcnow() > assignment.deadline
             submission.is_late = is_late
             db.session.commit()
             
-            # 提出URL生成
             url_token = str(uuid.uuid4())
             submission_url = SubmissionURL(submission_id=submission.id, url_token=url_token)
             db.session.add(submission_url)
@@ -522,14 +588,13 @@ def student_submission_url(url_token):
 
 @app.route('/student/assignment/<int:assignment_id>/history')
 def student_submission_history(assignment_id):
-    if not session.get('user_id') or session.get('role') != 'student':
+    if not session.get('user_id') or session.get('role') not in ['student', 'assistant']:
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
     assignment = get_assignment(assignment_id)
     course = get_course(assignment.course_id)
     
-    # 登録確認
     enrollment = CourseEnrollment.query.filter_by(
         course_id=course.id,
         student_id=user_id
@@ -547,12 +612,11 @@ def student_submission_history(assignment_id):
 
 @app.route('/student/course/<int:course_id>/game')
 def student_play_game(course_id):
-    if not session.get('user_id') or session.get('role') != 'student':
+    if not session.get('user_id') or session.get('role') not in ['student', 'assistant']:
         return redirect(url_for('login'))
     
     user_id = session.get('user_id')
     
-    # 登録確認
     enrollment = CourseEnrollment.query.filter_by(
         course_id=course_id,
         student_id=user_id

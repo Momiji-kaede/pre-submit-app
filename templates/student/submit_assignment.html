@@ -4,24 +4,115 @@
 
 {% block content %}
 <div class="submit-assignment">
-    <h2>課題を提出 - {{ assignment.title }}</h2>
+    <h2>📤 課題を提出 - {{ assignment.title }}</h2>
     <p>第{{ assignment.lecture_number }}回 | {{ course.course_name }}</p>
 
     <div class="assignment-info">
-        <h3>課題情報</h3>
-        <p><strong>説明:</strong> {{ assignment.description or '説明なし' }}</p>
-        <p><strong>締め切り:</strong> {{ assignment.deadline.strftime('%Y-%m-%d %H:%M') }}</p>
+        <h3>📋 課題情報</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>説明:</strong>
+                <p>{{ assignment.description or '説明なし' }}</p>
+            </div>
+            <div class="info-item">
+                <strong>締め切り:</strong>
+                <p>{{ assignment.deadline.strftime('%Y年%m月%d日 %H:%M') }}</p>
+            </div>
+        </div>
     </div>
 
     <form method="POST" enctype="multipart/form-data" class="form-block">
         <div class="form-group">
-            <label for="file">ファイルを選択 (ZIP, EXE, など)</label>
-            <input type="file" id="file" name="file" required>
-            <small>最大500MBまでアップロード可能です</small>
+            <label for="file">📁 ファイルを選択 (ZIP, EXE, WebGL, PDFなど) *</label>
+            <input type="file" id="file" name="file" required accept=".zip,.exe,.unity3d,.bin,.wasm,.json,.pdf">
+            <small>✅ 最大2GBまでアップロード可能です</small>
+            <small>💡 WebGL形式のゲームファイルとPDF説明書をZIPでまとめての提出を推奨します</small>
         </div>
 
-        <button type="submit" class="btn btn-primary">提出する</button>
-        <a href="{{ url_for('student_course_assignments', course_id=course.id) }}" class="btn btn-secondary">キャンセル</a>
+        <div class="form-group">
+            <label for="message">💬 教員へのメッセージ（任意）</label>
+            <textarea 
+                id="message" 
+                name="message" 
+                placeholder="提出内容についてコメントがあれば入力してください..."
+                rows="5"
+            ></textarea>
+            <small>例：「修正版です」「追加機能を実装しました」など</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">📤 提出する</button>
+            <a href="{{ url_for('student_course_assignments', course_id=course.id) }}" class="btn btn-secondary">キャンセル</a>
+        </div>
     </form>
+
+    <!-- 注意事項 -->
+    <div class="alert alert-info">
+        <h4>⚠️ 提出時の注意</h4>
+        <ul>
+            <li>✅ ファイル名に日本語は使用しないでください</li>
+            <li>✅ ZIP形式の場合、内部のフォルダ構成が保持されます</li>
+            <li>✅ 締め切り後の提出は「遅延」として記録されます</li>
+            <li>✅ 何度でも再提出できます。最後の提出が評価対象になります</li>
+        </ul>
+    </div>
 </div>
+
+<style>
+.assignment-info {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.info-item {
+    padding: 10px;
+    background-color: white;
+    border-radius: 5px;
+    border-left: 4px solid #007bff;
+}
+
+.info-item strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #007bff;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 20px;
+}
+
+.alert-info h4 {
+    margin-top: 0;
+    color: #0c5460;
+}
+
+.alert-info ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.alert-info li {
+    margin: 5px 0;
+}
+</style>
 {% endblock %}

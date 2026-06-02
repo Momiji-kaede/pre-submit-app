@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="submission-history">
-    <h2>提出履歴 - {{ assignment.title }}</h2>
+    <h2>📋 提出履歴 - {{ assignment.title }}</h2>
     <p>第{{ assignment.lecture_number }}回 | {{ course.course_name }}</p>
 
     {% if history %}
@@ -13,17 +13,29 @@
             <tr>
                 <th>提出回数</th>
                 <th>提出日時</th>
-                <th>ファイル</th>
+                <th>元のファイル名</th>
+                <th>状態</th>
                 <th>遅延</th>
-                <th>最新</th>
+                <th>メッセージ</th>
             </tr>
         </thead>
         <tbody>
             {% for submission in history %}
             <tr>
-                <td>{{ submission.submission_number }}回目</td>
+                <td><strong>{{ submission.submission_number }}回目</strong></td>
                 <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                <td>{{ submission.file_path.split('/')[-1] }}</td>
+                <td>
+                    <span title="{{ submission.original_filename or 'ファイル名なし' }}">
+                        {{ (submission.original_filename or 'ファイル名なし')[:30] }}{% if submission.original_filename and submission.original_filename|length > 30 %}...{% endif %}
+                    </span>
+                </td>
+                <td>
+                    {% if submission.is_latest %}
+                    <span class="badge badge-primary">⭐ 最新</span>
+                    {% else %}
+                    <span class="badge badge-secondary">過去</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if submission.is_late %}
                     <span class="badge badge-danger">🔴 遅延</span>
@@ -32,10 +44,15 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if submission.is_latest %}
-                    ⭐ 最新
+                    {% if submission.message_to_teacher %}
+                    <button class="btn-message" onclick="showMessage(this)" title="{{ submission.message_to_teacher }}">
+                        💬 表示
+                    </button>
+                    <div class="message-popup" style="display:none;">
+                        <p>{{ submission.message_to_teacher }}</p>
+                    </div>
                     {% else %}
-                    -
+                    <span class="text-muted">-</span>
                     {% endif %}
                 </td>
             </tr>
@@ -46,8 +63,145 @@
     <p class="empty-message">提出履歴がありません</p>
     {% endif %}
 
+    <!-- 統計情報 -->
+    {% if history %}
+    <div class="submission-stats">
+        <h3>📊 提出統計</h3>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <strong>合計提出回数:</strong>
+                <p class="stat-value">{{ history|length }}回</p>
+            </div>
+            <div class="stat-item">
+                <strong>最新提出日時:</strong>
+                <p class="stat-value">{{ history[0].submitted_at.strftime('%Y年%m月%d日') }}</p>
+            </div>
+            <div class="stat-item">
+                <strong>最新提出状態:</strong>
+                <p class="stat-value">
+                    {% if history[0].is_late %}
+                    🔴 遅延提出
+                    {% else %}
+                    ✅ 期限内
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="section">
-        <a href="{{ url_for('student_course_assignments', course_id=course.id) }}" class="btn btn-secondary">戻る</a>
+        <a href="{{ url_for('student_course_assignments', course_id=course.id) }}" class="btn btn-secondary">🔙 戻る</a>
     </div>
 </div>
+
+<script>
+function showMessage(button) {
+    const popup = button.nextElementSibling;
+    if (popup.style.display === 'none') {
+        popup.style.display = 'block';
+        button.textContent = '💬 非表示';
+    } else {
+        popup.style.display = 'none';
+        button.textContent = '💬 表示';
+    }
+}
+</script>
+
+<style>
+.submission-stats {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    background-color: white;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 4px solid #007bff;
+}
+
+.stat-item strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #007bff;
+    margin: 5px 0;
+}
+
+.btn-message {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-message:hover {
+    background-color: #218838;
+}
+
+.message-popup {
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 10px;
+    border-radius: 3px;
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.message-popup p {
+    margin: 0;
+    color: #333;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.badge-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+</style>
 {% endblock %}

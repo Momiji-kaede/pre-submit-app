@@ -11,7 +11,12 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # admin, teacher, student
+    full_name = db.Column(db.String(120))  # 氏名
+    student_id = db.Column(db.String(20), unique=True)  # 学籍番号
+    grade = db.Column(db.Integer)  # 学年
+    class_number = db.Column(db.String(50))  # 組
+    student_number = db.Column(db.Integer)  # 出席番号
+    role = db.Column(db.String(20), nullable=False)  # teacher, student, assistant
     is_system_admin = db.Column(db.Boolean, default=False)  # システム管理者権限
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -88,10 +93,13 @@ class Submission(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
+    original_filename = db.Column(db.String(500))  # 元のファイル名
     submission_number = db.Column(db.Integer, default=1)  # 1回目、2回目など
     is_latest = db.Column(db.Boolean, default=True)  # 最新の提出か
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_late = db.Column(db.Boolean, default=False)  # 遅延フラグ
+    message_to_teacher = db.Column(db.Text)  # 学生から教員へのメッセージ
+    is_partial = db.Column(db.Boolean, default=False)  # 部分提出フラグ
     
     def __repr__(self):
         return f'<Submission {self.assignment_id}-{self.student_id}>'
@@ -107,6 +115,52 @@ class SubmissionURL(db.Model):
     
     def __repr__(self):
         return f'<SubmissionURL {self.url_token}>'
+
+# ===== ルーブリック =====
+class Rubric(db.Model):
+    __tablename__ = 'rubrics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False)
+    item_name = db.Column(db.String(200), nullable=False)  # 採点項目名
+    max_score = db.Column(db.Integer, nullable=False)  # 最高点
+    description = db.Column(db.Text)  # 説明
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Rubric {self.item_name}>'
+
+# ===== 採点管理 =====
+class Grading(db.Model):
+    __tablename__ = 'gradings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rubric_id = db.Column(db.Integer, db.ForeignKey('rubrics.id'), nullable=False)
+    score = db.Column(db.Integer)  # 点数
+    comment = db.Column(db.Text)  # コメント
+    is_public = db.Column(db.Boolean, default=False)  # 公開/非公開
+    graded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Grading {self.assignment_id}-{self.student_id}>'
+
+# ===== 提出ファイル =====
+class SubmissionFile(db.Model):
+    __tablename__ = 'submission_files'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey('submissions.id'), nullable=False)
+    original_filename = db.Column(db.String(500), nullable=False)
+    server_filename = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.Integer)  # ファイルサイズ（バイト）
+    is_webgl = db.Column(db.Boolean, default=False)  # WebGLフラグ
+    is_pdf = db.Column(db.Boolean, default=False)  # PDFフラグ
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SubmissionFile {self.original_filename}>'
 
 # ===== データベース初期化 =====
 def init_db(app):
@@ -124,15 +178,51 @@ def get_user(username):
     """ユーザー名からユーザーを取得"""
     user = User.query.filter_by(username=username).first()
     if user:
-        return {'id': user.id, 'username': user.username, 'password': user.password, 'role': user.role, 'is_system_admin': user.is_system_admin}
+        return {
+            'id': user.id,
+            'username': user.username,
+            'password': user.password,
+            'role': user.role,
+            'is_system_admin': user.is_system_admin,
+            'full_name': user.full_name,
+            'student_id': user.student_id
+        }
     return None
 
-def create_user(username, email, password, role, is_system_admin=False):
+def create_user(username, email, password, role, is_system_admin=False, full_name=None, student_id=None, grade=None, class_number=None, student_number=None):
     """新しいユーザーを作成"""
-    user = User(username=username, email=email, password=password, role=role, is_system_admin=is_system_admin)
+    user = User(
+        username=username,
+        email=email,
+        password=password,
+        role=role,
+        is_system_admin=is_system_admin,
+        full_name=full_name,
+        student_id=student_id,
+        grade=grade,
+        class_number=class_number,
+        student_number=student_number
+    )
     db.session.add(user)
     db.session.commit()
     return user
+
+def get_all_students():
+    """全学生を取得"""
+    return User.query.filter_by(role='student').all()
+
+def get_all_assistants():
+    """全補助学生を取得"""
+    return User.query.filter_by(role='assistant').all()
+
+def delete_user(user_id):
+    """ユーザーを削除"""
+    user = User.query.get(user_id)
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        return True
+    return False
 
 # ===== 年度関連の関数 =====
 def get_or_create_academic_year(year):
@@ -183,7 +273,7 @@ def get_course_assignments(course_id):
     return Assignment.query.filter_by(course_id=course_id).all()
 
 # ===== 提出関連の関数 =====
-def create_submission(assignment_id, student_id, file_path):
+def create_submission(assignment_id, student_id, file_path, original_filename=None, message=None):
     """提出を作成"""
     # 最新の提出番号を取得
     latest_submission = Submission.query.filter_by(assignment_id=assignment_id, student_id=student_id, is_latest=True).first()
@@ -197,8 +287,10 @@ def create_submission(assignment_id, student_id, file_path):
         assignment_id=assignment_id,
         student_id=student_id,
         file_path=file_path,
+        original_filename=original_filename,
         submission_number=submission_number,
-        is_latest=True
+        is_latest=True,
+        message_to_teacher=message
     )
     db.session.add(submission)
     db.session.commit()
@@ -211,3 +303,39 @@ def get_student_submission(assignment_id, student_id):
 def get_submission_history(assignment_id, student_id):
     """提出履歴を取得"""
     return Submission.query.filter_by(assignment_id=assignment_id, student_id=student_id).order_by(Submission.submitted_at.desc()).all()
+
+# ===== ルーブリック関連の関数 =====
+def create_rubric(assignment_id, item_name, max_score, description=None):
+    """ルーブリック項目を作成"""
+    rubric = Rubric(assignment_id=assignment_id, item_name=item_name, max_score=max_score, description=description)
+    db.session.add(rubric)
+    db.session.commit()
+    return rubric
+
+def get_assignment_rubrics(assignment_id):
+    """課題のルーブリック項目を取得"""
+    return Rubric.query.filter_by(assignment_id=assignment_id).all()
+
+# ===== 採点関連の関数 =====
+def create_grading(assignment_id, student_id, rubric_id, score, comment=None, is_public=False):
+    """採点を作成"""
+    grading = Grading(
+        assignment_id=assignment_id,
+        student_id=student_id,
+        rubric_id=rubric_id,
+        score=score,
+        comment=comment,
+        is_public=is_public
+    )
+    db.session.add(grading)
+    db.session.commit()
+    return grading
+
+def get_student_grades(assignment_id, student_id):
+    """学生の採点を取得"""
+    return Grading.query.filter_by(assignment_id=assignment_id, student_id=student_id).all()
+
+def get_student_total_score(assignment_id, student_id):
+    """学生の合計点を計算"""
+    grades = get_student_grades(assignment_id, student_id)
+    return sum([g.score for g in grades if g.score is not None])

@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}ユーザー管理 - 課題提出アプリ{% endblock %}
+
+{% block content %}
+<div class="user-management">
+    <h2>👥 ユーザー管理</h2>
+
+    <!-- ユーザー作成フォーム -->
+    <div class="section">
+        <h3>➕ 新規ユーザーを作成</h3>
+        <form method="POST" action="{{ url_for('teacher_create_user') }}" class="form-block">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="username">ユーザー名 *</label>
+                    <input type="text" id="username" name="username" placeholder="ユーザー名を入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">メールアドレス *</label>
+                    <input type="email" id="email" name="email" placeholder="メールアドレスを入力" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="full_name">氏名 *</label>
+                    <input type="text" id="full_name" name="full_name" placeholder="氏名を入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="student_id">学籍番号 *</label>
+                    <input type="text" id="student_id" name="student_id" placeholder="学籍番号を入力（初期PW）" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="grade">学年</label>
+                    <select id="grade" name="grade">
+                        <option value="">-- 選択 --</option>
+                        <option value="1">1年</option>
+                        <option value="2">2年</option>
+                        <option value="3">3年</option>
+                        <option value="4">4年</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="class_number">組</label>
+                    <input type="text" id="class_number" name="class_number" placeholder="A組など">
+                </div>
+                <div class="form-group">
+                    <label for="student_number">出席番号</label>
+                    <input type="number" id="student_number" name="student_number" placeholder="1～30など">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="role">ロール *</label>
+                    <select id="role" name="role" required>
+                        <option value="">-- 選択 --</option>
+                        <option value="student">学生</option>
+                        <option value="assistant">補助学生</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">ユーザーを作成</button>
+            <small>💡 初期パスワードは学籍番号に設定されます</small>
+        </form>
+    </div>
+
+    <!-- 学生一覧 -->
+    <div class="section">
+        <h3>📚 学生一覧（{{ students | length }}人）</h3>
+        {% if students %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>氏名</th>
+                    <th>学籍番号</th>
+                    <th>学年</th>
+                    <th>組</th>
+                    <th>出席番号</th>
+                    <th>メールアドレス</th>
+                    <th>登録日</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.username }}</td>
+                    <td>{{ student.full_name or '-' }}</td>
+                    <td>{{ student.student_id or '-' }}</td>
+                    <td>{% if student.grade %}{{ student.grade }}年{% else %}-{% endif %}</td>
+                    <td>{{ student.class_number or '-' }}</td>
+                    <td>{{ student.student_number or '-' }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>{{ student.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('teacher_delete_user', user_id=student.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('本当に削除しますか？')">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">学生がまだ登録されていません</p>
+        {% endif %}
+    </div>
+
+    <!-- 補助学生一覧 -->
+    <div class="section">
+        <h3>🎓 補助学生一覧（{{ assistants | length }}人）</h3>
+        {% if assistants %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ユーザー名</th>
+                    <th>氏名</th>
+                    <th>学籍番号</th>
+                    <th>学年</th>
+                    <th>組</th>
+                    <th>出席番号</th>
+                    <th>メールアドレス</th>
+                    <th>登録日</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assistant in assistants %}
+                <tr>
+                    <td>{{ assistant.username }}</td>
+                    <td>{{ assistant.full_name or '-' }}</td>
+                    <td>{{ assistant.student_id or '-' }}</td>
+                    <td>{% if assistant.grade %}{{ assistant.grade }}年{% else %}-{% endif %}</td>
+                    <td>{{ assistant.class_number or '-' }}</td>
+                    <td>{{ assistant.student_number or '-' }}</td>
+                    <td>{{ assistant.email }}</td>
+                    <td>{{ assistant.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('teacher_delete_user', user_id=assistant.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-danger btn-small" onclick="return confirm('本当に削除しますか？')">削除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-message">補助学生がまだ登録されていません</p>
+        {% endif %}
+    </div>
+
+    <!-- 戻るボタン -->
+    <div class="section">
+        <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">🏠 ダッシュボードに戻る</a>
+    </div>
+</div>
+
+<style>
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+</style>
+{% endblock %}
